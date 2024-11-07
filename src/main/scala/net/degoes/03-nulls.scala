@@ -29,7 +29,7 @@ object Nulls extends ZIOSpecDefault {
 
           def parentOf(file: String): Option[File] = new File(file).getParent match {
             case null => Option.empty
-            case _ => Option.apply(new File(file).getParentFile)
+            case _ => Option(new File(file).getParentFile)
           }
 
           assertTrue(parentOf("") != null)
@@ -107,9 +107,9 @@ object Nulls extends ZIOSpecDefault {
            * into a single option by using the first available value.
            */
           test("oneOf") {
-            def firstOf[A](left: Option[A], right: Option[A]): Option[A] = (left, right) match{
-              case in if in._1.isDefined => Some(left.get)
-              case in if in._2.isDefined => Some(right.get)
+            def firstOf[A](left: Option[A], right: Option[A]): Option[A] = (left, right) match {
+              case (Some(a), None) => Some(a)
+              case (None, Some(b)) => Some(b)
               case _ => None
             }
 
