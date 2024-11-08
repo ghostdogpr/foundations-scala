@@ -26,12 +26,7 @@ object Exceptions extends ZIOSpecDefault {
          * Modify `parseInt` to return an `Option`.
          */
         test("Option") {
-          def parseInt(s: String): Option[Int] =
-            try {
-              Some(s.toInt)
-            } catch {
-              case e: NumberFormatException => None
-            }
+          def parseInt(s: String): Option[Int] = Try(s.toInt).toOption
 
           def test = (parseInt(""): Option[Int]) match {
             case None => "None"
@@ -48,12 +43,7 @@ object Exceptions extends ZIOSpecDefault {
           test("Try") {
             import scala.util._
 
-            def parseInt(s: String): Try[Int] =
-              try {
-                Success(s.toInt)
-              } catch {
-                case ex: NumberFormatException => Failure(ex)
-              }
+            def parseInt(s: String): Try[Int] = Try(s.toInt)
 
             def test = (parseInt(""): Try[Int]) match {
               case Failure(_) => "Failure"
@@ -69,12 +59,8 @@ object Exceptions extends ZIOSpecDefault {
            * failure to parse an integer.
            */
           test("Either") {
-            def parseInt(s: String): Either[Exception, Int] =
-              try {
-                Right(s.toInt)
-              } catch {
-                case ex: NumberFormatException => Left(ex)
-              }
+            def parseInt(s: String): Either[Throwable, Int] =
+              Try(s.toInt).toEither
 
             def test = (parseInt(""): Any) match {
               case Left(_) => "Left"
@@ -94,16 +80,13 @@ object Exceptions extends ZIOSpecDefault {
            */
           test("Option") {
             def parseInt(i: String): Option[Int] =
-              try Some(i.toInt)
-              catch { case _: Throwable => None }
+              Try(i.toInt).toOption
 
             final case class Id private (value: Int)
 
             object Id {
-              def fromString(value: String): Option[Id] = parseInt(value) match {
-                case None => None
-                case res: Option[Int] => Some(new Id(res.get))
-              }
+              def fromString(value: String): Option[Id] =
+                parseInt(value).map(new Id(_))
             }
 
             assertTrue(Id.fromString("123").isDefined)

@@ -94,7 +94,7 @@ object Nulls extends ZIOSpecDefault {
            */
           test("both") {
             def both[A, B](left: Option[A], right: Option[B]): Option[(A, B)] = (left, right) match {
-              case in if in._1.isDefined && in._2.isDefined => Some((in._1.get, in._2.get))
+              case (Some(a), Some(b)) => Some((a, b))
               case _ => None
             }
 
@@ -108,7 +108,7 @@ object Nulls extends ZIOSpecDefault {
            */
           test("oneOf") {
             def firstOf[A](left: Option[A], right: Option[A]): Option[A] = (left, right) match {
-              case (Some(a), None) => Some(a)
+              case (Some(a), _) => Some(a)
               case (None, Some(b)) => Some(b)
               case _ => None
             }
@@ -212,6 +212,19 @@ object Nulls extends ZIOSpecDefault {
                 else if (user.get.profile.get.address.isEmpty) None
                 else if (user.get.profile.get.address.get.street.isEmpty) None
                 else Some(user.get.profile.get.address.get.street.get)
+
+
+              def getStreet2(user: Option[User]): Option[String] =
+                user.flatMap(_.profile.flatMap(_.address.flatMap(_.street)))
+
+              def getStreet3(user: Option[User]): Option[String] =
+                for {
+                  u <- user
+                  profile <- u.profile
+                  address <- profile.address
+                  street <- address.street
+                  street2 = street + "ddfsdf"
+                } yield street2
 
               def assertFails(value: => Any) = assertTrue(value == None)
 

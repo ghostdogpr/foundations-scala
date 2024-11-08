@@ -15,6 +15,7 @@ package net.degoes
 import zio.test._
 import zio.test.TestAspect._
 
+
 object Recursion extends ZIOSpecDefault {
   def spec =
     suite("Recursion") {
@@ -26,10 +27,9 @@ object Recursion extends ZIOSpecDefault {
          * Using recursion, compute the sum of a list of integers.
          */
         test("sum") {
-          def sum(list: List[Int]): Int = {
-            var res = 0
-            for (ele <- list) res += ele
-            res
+          def sum(list: List[Int]): Int = list match {
+            case Nil => 0
+            case head :: tail => head + sum(tail)
           }
 
           assertTrue(sum(List(1, 2, 3, 4, 5)) == 15)
@@ -40,10 +40,9 @@ object Recursion extends ZIOSpecDefault {
            * Using recursion, compute the maximum of a list of integers.
            */
           test("max") {
-            def max(list: List[Int]): Int = {
-              var max = 0
-              list.foreach(ele => if (ele > max)  max = ele)
-              max
+            def max(list: List[Int]): Int = list match {
+              case Nil => -1
+              case head :: tail => Math.max(head, max(tail))
             }
 
             assertTrue(max(List(1, 7, 3, 2, 4, 5)) == 7)
@@ -55,7 +54,7 @@ object Recursion extends ZIOSpecDefault {
            */
           test("prime") {
             def isPrime(n: Int): Boolean = {
-              for (i <- 2 to Math.sqrt(n))
+              for (i: Int <- 2 to Math.sqrt(n))
                 if (n % i == 0) return false
               true
             }
@@ -132,15 +131,15 @@ object Recursion extends ZIOSpecDefault {
                   head
               }
 
-            def repeatWhile[A, S](action: () => A)(pred: A => Boolean)(reducer: (A, A) => A): A =
-              while (pred.apply(action())) {
-                reducer.apply()
-              }
+            def repeatWhile[A, S](action: () => A)(pred: A => Boolean)(reducer: (A, A) => A): A = action( ) match {
+              case split: A if pred.apply(split) => split
+              case _ => repeatWhile(action)(pred)(reducer)
+            }
 
             val result = repeatWhile(readLine)(_ == "Sherlock")((a, b) => b)
 
             assertTrue(result == "Sherlock")
-          } @@ ignore
+          }
 
       } +
         suite("tail recursion") {
@@ -152,12 +151,12 @@ object Recursion extends ZIOSpecDefault {
            */
           test("sum") {
             @tailrec
-            def sum(list: List[Int]): Int = list match {
-               case Nil => 0
-               case head :: tail => head + sum(tail)
+            def sum(list: List[Int], acc: Int): Int = list match {
+               case Nil => acc
+               case head :: tail =>  sum(tail, acc + head)
              }
 
-            assertTrue(sum(List(1, 2, 3, 4, 5)) == 15)
+            assertTrue(sum(List(1, 2, 3, 4, 5), 0) == 15)
           } +
             /**
              * EXERCISE
@@ -166,15 +165,13 @@ object Recursion extends ZIOSpecDefault {
              */
             test("max") {
               @tailrec
-              def max(list: List[Int]): Int = list match {
-                case Nil => -1
+              def max(list: List[Int], current: Int): Int = list match {
+                case Nil => current
                 case head :: tail =>
-                  val tailMax: Int = max(tail)
-                  if (tailMax > head) tailMax
-                  else  head
+                  max(tail, Math.max(current, head))
               }
 
-              assertTrue(max(List(1, 7, 3, 2, 4, 5)) == 7)
+              assertTrue(max(List(1, 7, 3, 2, 4, 5), 0) == 7)
             } +
             /**
              * EXERCISE
@@ -208,12 +205,15 @@ object Recursion extends ZIOSpecDefault {
                     head
                 }
 
-              def repeatWhile[A, S](action: () => A)(pred: A => Boolean)(reducer: (A, A) => A): A = ???
+              def repeatWhile[A, S](action: () => A)(pred: A => Boolean)(reducer: (A, A) => A): A = action( ) match {
+                case split if pred.apply(split) => split
+                case _ => repeatWhile(action)(pred)(reducer)
+              }
 
               val result = repeatWhile(readLine)(_ == "Sherlock")((a, b) => b)
 
               assertTrue(result == "Sherlock")
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -250,7 +250,7 @@ object Recursion extends ZIOSpecDefault {
                     else if (ordering.compare(x, pivot) > 0) (lessThan, same, x::greaterThan)
                     else (lessThan, x::same, greaterThan)
                   }
-                  sort(lLst) :: sLst :: sort(rLst)
+                  sort(lLst)(ordering) :: sLst :: sort(rLst)(ordering)
                 }
               }
 
