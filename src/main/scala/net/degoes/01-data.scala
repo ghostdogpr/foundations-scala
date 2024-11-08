@@ -20,6 +20,8 @@ import zio._
 import zio.test._
 import zio.test.TestAspect._
 
+/*
+
 object Data extends ZIOSpecDefault {
   type ???
 
@@ -34,15 +36,15 @@ object Data extends ZIOSpecDefault {
          * constructor parameters of the class.
          */
         test("fields") {
-          class Person(name: String, age: Int)
+          class Person(var name: String, var age: Int)
 
-          def getName(p: Person): String = ???
-          def getAge(p: Person): Int     = ???
+          def getName(p: Person): String = p.name
+          def getAge(p: Person): Int     = p.age
 
           val holmes = new Person("Sherlock Holmes", 42)
 
           assertTrue(getName(holmes) == "Sherlock Holmes" && getAge(holmes) == 42)
-        } @@ ignore +
+        } +
           /**
            * EXERCISE
            *
@@ -52,11 +54,13 @@ object Data extends ZIOSpecDefault {
            */
           test("apply") {
             object Person {
-              def apply(name: String, age: Int) = ???
+              class Person(var name: String, var age: Int)
+
+              def apply(name: String, age: Int) = new Person(name, age)
             }
 
             assertTrue(Person("Sherlock Holmes", 42) == Person("Sherlock Holmes", 42))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -64,10 +68,18 @@ object Data extends ZIOSpecDefault {
            * turning it into a case class.
            */
           test("equals") {
-            class Profile(val age: Int)
+            class Profile(val age: Int) {
+              override def equals(other: Any): Boolean = other match {
+                case profile: Profile =>
+                  this.age == profile.age
+                case _ => false
+              }
+
+              override def hashCode( ): Int = age.hashCode() + 31 * age
+            }
 
             assertTrue(new Profile(42) == new Profile(42))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -75,10 +87,12 @@ object Data extends ZIOSpecDefault {
            * by turning it into a case class.
            */
           test("hashCode") {
-            class CreditCard(val number: String)
+            class CreditCard(val number: String) {
+              override def hashCode(): Int = super.hashCode( )
+            }
 
             assertTrue(new CreditCard("123").hashCode == new CreditCard("123").hashCode)
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -86,10 +100,12 @@ object Data extends ZIOSpecDefault {
            * by turning it into a case class.
            */
           test("toString") {
-            class Address(val street: String)
+            class Address(val street: String) {
+              override def toString: String = "Address(" + this.street + ")"
+            }
 
             assertTrue(new Address("221B Baker Street").toString == "Address(221B Baker Street)")
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -102,13 +118,15 @@ object Data extends ZIOSpecDefault {
                 canRead: Boolean = this.canRead,
                 canWrite: Boolean = this.canWrite,
                 canShare: Boolean = this.canShare
-              ): Permissions = ???
+              ): Permissions = new Permissions(
+                canRead, canWrite, canShare
+              )
             }
 
             val perms = new Permissions(true, false, false)
 
             assertTrue(perms.copy(canRead = false) == new Permissions(false, false, false))
-          } @@ ignore +
+          } +
           suite("patterns") {
 
             /**
@@ -119,10 +137,10 @@ object Data extends ZIOSpecDefault {
             test("simple") {
               final case class Address(street: String)
 
-              def extractStreet(address: Address): String = ???
+              def extractStreet(address: Address): String = address.street
 
               assertTrue(extractStreet(Address("221B Baker")) == "221B Baker")
-            } @@ ignore +
+            } +
               /**
                * EXERCISE
                *
@@ -132,10 +150,10 @@ object Data extends ZIOSpecDefault {
               test("wildcard") {
                 final case class Address(street: String, postalCode: String)
 
-                def extractPostalCode(address: Address): String = ???
+                def extractPostalCode(address: Address): String = address.postalCode
 
                 assertTrue(extractPostalCode(Address("221B Baker", "NW1 6XE")) == "NW1 6XE")
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -146,10 +164,13 @@ object Data extends ZIOSpecDefault {
               test("constant") {
                 final case class Address(street: String, postalCode: String)
 
-                def is221B(address: Address): Boolean = ???
+                def is221B(address: Address): Boolean = address.street match {
+                  case "211B Baker" => true
+                  case _ => false
+                }
 
                 assertTrue(is221B(Address("221B Baker", "NW1 6XE")))
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -161,10 +182,13 @@ object Data extends ZIOSpecDefault {
               test("ordered") {
                 final case class Address(number: String, street: String, postalCode: String)
 
-                def neighbor(address: Address): String = ???
+                def neighbor(address: Address): String = address.street match {
+                  case "Baker" => "Knows Holmes"
+                  case _ => "Unknown"
+                }
 
                 assertTrue(neighbor(Address("220", "Baker", "NW1 6XE")) == "Knows Holmes")
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -174,10 +198,10 @@ object Data extends ZIOSpecDefault {
               test("conditional") {
                 final case class Address(street: String, postalCode: String)
 
-                def isBaker(address: Address): Boolean = ???
+                def isBaker(address: Address): Boolean = address.street.contains("Baker")
 
                 assertTrue(isBaker(Address("220 Baker", "NW1 6XE")))
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -188,12 +212,12 @@ object Data extends ZIOSpecDefault {
                 final case class Person(name: String, address: Address)
                 final case class Address(street: String, postalCode: String)
 
-                def extractPostalCode(person: Person): String = ???
+                def extractPostalCode(person: Person): String = person.address.postalCode
 
                 val sherlock = Person("Sherlock Holmes", Address("221B Baker", "NW1 6XE"))
 
                 assertTrue(extractPostalCode(sherlock) == "NW1 6XE")
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -207,12 +231,12 @@ object Data extends ZIOSpecDefault {
 
                 val _ = sherlockStreet
 
-                def isSherlockStreet(address: Address): Boolean = ???
+                def isSherlockStreet(address: Address): Boolean = address.street == sherlockStreet
 
                 val address = Address("220", "Baker", "NW1 6XE")
 
                 assertTrue(isSherlockStreet(address))
-              } @@ ignore
+              }
           }
       } +
         suite("Sealed Traits") {
@@ -237,7 +261,7 @@ object Data extends ZIOSpecDefault {
             }
 
             assertTrue(!isRed(Blue))
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -252,7 +276,7 @@ object Data extends ZIOSpecDefault {
               def isCountry(a: Any) = a.isInstanceOf[Country]
 
               assertTrue(isCountry(UK) && isCountry(USA))
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -270,6 +294,9 @@ object Data extends ZIOSpecDefault {
               val _ = PayPal("")
 
               def asCreditCard(paymentMethod: PaymentMethod): Option[CreditCard] = ???
+//                paymentMethod <:< CreditCard => Some(paymentMethod)
+//                _ => None
+//              }
 
               val cc: CreditCard = CreditCard("123123123123", java.time.YearMonth.of(1984, 12), 123)
 
@@ -286,14 +313,21 @@ object Data extends ZIOSpecDefault {
            * single, divorced.
            */
           test("example 1") {
-            type RelationshipStatus = ???
 
-            def makeMarried: RelationshipStatus = ???
+            sealed trait RelationshipStatus
+            object RelationshipStatus {
+              case object Married extends RelationshipStatus
+              case object Divorced extends RelationshipStatus
+              case object Single extends RelationshipStatus
+            }
 
-            def makeSingle: RelationshipStatus = ???
+            import RelationshipStatus.{Married, Single, Divorced}
+            def makeMarried: RelationshipStatus = Married
+
+            def makeSingle: RelationshipStatus = Single
 
             assertTrue(makeMarried != makeSingle)
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -302,41 +336,65 @@ object Data extends ZIOSpecDefault {
              * API token, which is a string.
              */
             test("example 2") {
-              type PaymentProcessorAPI = ???
-              type DataFormat          = ???
+              sealed abstract class DataFormat
+              object DataFormat {
+                case object JSON extends DataFormat
+                case object XML extends DataFormat
+              }
 
-              def define(url: java.net.URI, df: DataFormat, apiToken: String): PaymentProcessorAPI = ???
+              import DataFormat.{JSON, XML}
+
+              case class PaymentProcessorAPI(url: java.net.URI, df: DataFormat, apiToken: String)
+
+              def define(url: java.net.URI, df: DataFormat, apiToken: String): PaymentProcessorAPI =
+                new PaymentProcessorAPI(url, df, apiToken)
 
               val url              = new java.net.URI("https://stripe.com")
-              def json: DataFormat = ???
+              def json: DataFormat = JSON
 
               val api1 = define(url, json, "123123")
               val api2 = define(url, json, "123124")
 
               assertTrue(api1 == api1 && api1 != api2)
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
              * Create a precise data model for a user's crypto portfolio.
              */
             test("example 3") {
-              type Portfolio = ???
+              sealed abstract class Symbol
+              object Symbol {
+                case object Eth extends Symbol
+                case object Btc extends Symbol
+              }
 
-              type Symbol = ???
+              import Symbol.{Eth, Btc}
+              class Portfolio {
+                val balance = Map[Symbol, Double]()
 
-              def ETH: Symbol = ???
-              def BTC: Symbol = ???
+                override def equals(obj: Any): Boolean = {
+                  case obj: Portfolio => balance.keySet
+                    .filter((sym: Symbol) => obj.balance.getOrElse(sym, 0) != obj.balance.getOrElse(sym, 0))
+                    .size > 0
+                  case _ => false
+                }
+              }
 
-              def add(portfolio: Portfolio, symbol: Symbol, amount: Double): Portfolio = ???
+              def ETH: Symbol = Eth
+              def BTC: Symbol = Btc
 
-              def empty: Portfolio = ???
+              def add(portfolio: Portfolio, symbol: Symbol, amount: Double): Portfolio = {
+                portfolio.balance += (symbol, portfolio.balance.getOrElse(symbol, 0) + amount)
+              }
+
+              def empty: Portfolio = new Portfolio
 
               val p1 = add(add(add(empty, ETH, 1.0), ETH, 1.0), BTC, 2.0)
               val p2 = add(add(empty, BTC, 2.0), ETH, 2.0)
 
               assertTrue(p1 == p2)
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -345,7 +403,7 @@ object Data extends ZIOSpecDefault {
              * which could bundle different features into the plan.
              */
             test("example 4") {
-              type Features     = ???
+              class Features(var space: Int, val sso: Boolean, val customLogo: Boolean)
               type Subscription = ???
               def makeFeatures(space: Int, sso: Boolean, customLogo: Boolean): Features = ???
               def makeMonthly(amount: Double, features: Features): Subscription         = ???
@@ -362,8 +420,8 @@ object Data extends ZIOSpecDefault {
              * and field types, where field types may be integers, strings,
              * booleans, or other common types for fields in forms.
              */
-            test("advanced example") {
-              type Field[A]     = ???
+            test("advanced example")  {
+              class Field[A](val fieldType: FieldType[A], val name: String)
               type FieldType[A] = ???
 
               def intType: FieldType[Int]    = ???
@@ -457,3 +515,7 @@ object DataGraduation extends ZIOAppDefault {
       _     <- mainLoop(ref)
     } yield ()
 }
+
+
+
+ */

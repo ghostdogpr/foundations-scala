@@ -12,7 +12,8 @@
 package net.degoes
 
 import zio.test._
-import zio.test.TestAspect._
+
+import scala.util.{Failure, Success, Try}
 
 object Exceptions extends ZIOSpecDefault {
   def spec =
@@ -25,15 +26,15 @@ object Exceptions extends ZIOSpecDefault {
          * Modify `parseInt` to return an `Option`.
          */
         test("Option") {
-          def parseInt(s: String) = s.toInt
+          def parseInt(s: String): Option[Int] = Try(s.toInt).toOption
 
-          def test = (parseInt(""): Any) match {
+          def test = (parseInt(""): Option[Int]) match {
             case None => "None"
             case _    => "Some"
           }
 
           assertTrue(test == "None")
-        } @@ ignore +
+        } +
           /**
            * EXERCISE
            *
@@ -42,15 +43,15 @@ object Exceptions extends ZIOSpecDefault {
           test("Try") {
             import scala.util._
 
-            def parseInt(s: String) = s.toInt
+            def parseInt(s: String): Try[Int] = Try(s.toInt)
 
-            def test = (parseInt(""): Any) match {
+            def test = (parseInt(""): Try[Int]) match {
               case Failure(_) => "Failure"
               case _          => "Success"
             }
 
             assertTrue(test == "Failure")
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -58,7 +59,8 @@ object Exceptions extends ZIOSpecDefault {
            * failure to parse an integer.
            */
           test("Either") {
-            def parseInt(s: String) = s.toInt
+            def parseInt(s: String): Either[Throwable, Int] =
+              Try(s.toInt).toEither
 
             def test = (parseInt(""): Any) match {
               case Left(_) => "Left"
@@ -66,7 +68,7 @@ object Exceptions extends ZIOSpecDefault {
             }
 
             assertTrue(test == "Left")
-          } @@ ignore
+          }
       } +
         suite("map") {
 
@@ -78,21 +80,17 @@ object Exceptions extends ZIOSpecDefault {
            */
           test("Option") {
             def parseInt(i: String): Option[Int] =
-              try Some(i.toInt)
-              catch { case _: Throwable => None }
+              Try(i.toInt).toOption
 
             final case class Id private (value: Int)
 
             object Id {
-              def fromString(value: String): Option[Id] = {
-                parseInt(value)
-
-                ???
-              }
+              def fromString(value: String): Option[Id] =
+                parseInt(value).map(new Id(_))
             }
 
             assertTrue(Id.fromString("123").isDefined)
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -109,14 +107,16 @@ object Exceptions extends ZIOSpecDefault {
 
               object Id {
                 def fromString(value: String): Try[Id] = {
-                  parseInt(value)
-
-                  ???
+                  parseInt(value) match {
+                    case a: Success[Int] if a.value >= 0 => Success(new Id(a.value))
+                    case a: Failure[Int] => Failure(a.exception)
+                    case _ => Failure(new Throwable( ))
+                  }
                 }
               }
 
               assertTrue(Id.fromString("123").isSuccess)
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -135,14 +135,16 @@ object Exceptions extends ZIOSpecDefault {
 
               object Id {
                 def fromString(value: String): Either[String, Id] = {
-                  parseInt(value)
-
-                  ???
+                  parseInt(value) match {
+                    case Right(result) if result >= 0 => Right(new Id(result))
+                    case Left(error) => Left(error)
+                    case _ => Left("Failure")
+                  }
                 }
               }
 
               assertTrue(Id.fromString("123").isRight)
-            } @@ ignore
+            }
         } +
         suite("fallback") {
 
@@ -154,10 +156,14 @@ object Exceptions extends ZIOSpecDefault {
            * hand side.
            */
           test("Option") {
-            def fallback[A](left: Option[A], right: Option[A]): Option[A] = ???
+            def fallback[A](left: Option[A], right: Option[A]): Option[A] = {
+              if (left.isDefined) Some(left.get)
+              else if (right.isDefined) Some(right.get)
+              else    None
+            }
 
             assertTrue(fallback(None, Some(42)) == Some(42))
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -168,10 +174,14 @@ object Exceptions extends ZIOSpecDefault {
             test("Try") {
               import scala.util._
 
-              def fallback[A](left: Try[A], right: Try[A]): Try[A] = ???
+              def fallback[A](left: Try[A], right: Try[A]): Try[A] = {
+                if (left.isSuccess) left
+                else if (right.isSuccess) right
+                else  new Failure[A](new Throwable("Epic Fail"))
+              }
 
               assertTrue(fallback(Failure(new Throwable), Success(42)) == Success(42))
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -180,10 +190,14 @@ object Exceptions extends ZIOSpecDefault {
              * hand side.
              */
             test("Either") {
-              def fallback[E, A](left: Either[E, A], right: Either[E, A]): Either[E, A] = ???
+              def fallback[E, A](left: Either[E, A], right: Either[E, A]): Either[E, A] = {
+                if (left.isRight) left
+                else if (right.isRight) right
+                else left
+              }
 
               assertTrue(fallback(Left("Uh oh!"), Right(42)) == Right(42))
-            } @@ ignore
+            }
         } +
         suite("flatMap") {
 
@@ -203,14 +217,14 @@ object Exceptions extends ZIOSpecDefault {
 
             object Natural {
               def fromString(value: String): Option[Natural] = {
-                parseInt(value)
-
-                ???
+                parseInt(value).flatMap(num =>
+                if (num >= 0) Some(new Natural(num))
+                else  None)
               }
             }
 
             assertTrue(Natural.fromString("123").isDefined)
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -227,14 +241,14 @@ object Exceptions extends ZIOSpecDefault {
 
               object Natural {
                 def fromString(value: String): Try[Natural] = {
-                  parseInt(value)
-
-                  ???
+                  parseInt(value).flatMap(num =>
+                  if (num >= 0) Success(new Natural(num))
+                  else new Failure[Natural](new Throwable( )))
                 }
               }
 
               assertTrue(Natural.fromString("123").isSuccess)
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -253,14 +267,14 @@ object Exceptions extends ZIOSpecDefault {
 
               object Natural {
                 def fromString(value: String): Either[String, Natural] = {
-                  parseInt(value)
-
-                  ???
+                  parseInt(value).flatMap(num =>
+                  if (num >= 0) Right(new Natural(num))
+                  else          Left("Failure"))
                 }
               }
 
               assertTrue(Natural.fromString("123").isRight)
-            } @@ ignore
+            }
         } +
         suite("both") {
 
@@ -271,10 +285,12 @@ object Exceptions extends ZIOSpecDefault {
            * sides, will produce a tuple of those values.
            */
           test("Option") {
-            def both[A, B](left: Option[A], right: Option[B]): Option[(A, B)] = ???
+            def both[A, B](left: Option[A], right: Option[B]): Option[(A, B)] =
+              if (left.isDefined && right.isDefined)  Some((left.get, right.get))
+              else  None
 
             assertTrue(both(Some(4), Some(2)) == Some((4, 2)))
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -284,10 +300,12 @@ object Exceptions extends ZIOSpecDefault {
             test("Try") {
               import scala.util._
 
-              def both[A, B](left: Try[A], right: Try[B]): Try[(A, B)] = ???
+              def both[A, B](left: Try[A], right: Try[B]): Try[(A, B)] =
+                if (left.isSuccess && right.isSuccess)  Success((left.get, right.get))
+                else  Failure(new Throwable( ))
 
               assertTrue(both(Try(4), Try(2)) == Try((4, 2)))
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -295,10 +313,14 @@ object Exceptions extends ZIOSpecDefault {
              * sides, will produce a tuple of those values.
              */
             test("Either") {
-              def both[E, A, B](left: Either[E, A], right: Either[E, B]): Either[E, (A, B)] = ???
+              def both[E, A, B](left: Either[E, A], right: Either[E, B]): Either[E, (A, B)] = {
+                if (left.isLeft)  Left(left.swap.toOption.get)
+                else if (right.isLeft) Left(right.swap.toOption.get)
+                else Right((left.merge.asInstanceOf[A], right.merge.asInstanceOf[B]))
+              }
 
               assertTrue(both(Right(4), Right(2)) == Right((4, 2)))
-            } @@ ignore
+            }
         } +
         suite("porting") {
 
@@ -309,30 +331,30 @@ object Exceptions extends ZIOSpecDefault {
            */
           test("Option") {
             object Config {
-              def getHost(): String = {
+              def getHost(): Option[String] = {
                 val result = System.getProperty("CONFIG_HOST")
 
-                if (result == null) throw new RuntimeException("Host is missing")
+                if (result == null) return None
 
-                result
+                Some(result)
               }
 
-              def getPort(): Int = {
-                val result = System.getProperty("CONFIG_HOST")
+              def getPort(): Option[Int] = {
+                val result = System.getProperty("CONFIG_PORT")
 
-                if (result == null) throw new RuntimeException("Port is missing")
+                if (result == null) return None
 
-                result.toInt
+                Some(result.toInt)
               }
             }
 
             final case class ConnectionInfo(host: String, port: Int)
 
             def loadConnectionInfo(): ConnectionInfo =
-              ConnectionInfo(Config.getHost(), Config.getPort())
+              ConnectionInfo(Config.getHost().get, Config.getPort().get)
 
             assertTrue(loadConnectionInfo().FIXME)
-          } @@ ignore +
+          } +
             /**
              * EXERCISE
              *
@@ -340,30 +362,24 @@ object Exceptions extends ZIOSpecDefault {
              */
             test("Try") {
               object Config {
-                def getHost(): String = {
-                  val result = System.getProperty("CONFIG_HOST")
-
-                  if (result == null) throw new RuntimeException("Host is missing")
-
-                  result
+                def getHost(): Try[String] = System.getProperty("CONFIG_HOST") match {
+                  case null => Failure(new Throwable())
+                  case res => Success(res)
                 }
 
-                def getPort(): Int = {
-                  val result = System.getProperty("CONFIG_HOST")
-
-                  if (result == null) throw new RuntimeException("Port is missing")
-
-                  result.toInt
+                def getPort(): Try[Int] = System.getProperty("CONFIG_PORT") match {
+                  case null => Failure(new Throwable( ))
+                  case res => Success(res.toInt)
                 }
               }
 
               final case class ConnectionInfo(host: String, port: Int)
 
               def loadConnectionInfo(): ConnectionInfo =
-                ConnectionInfo(Config.getHost(), Config.getPort())
+                ConnectionInfo(Config.getHost().get, Config.getPort().get)
 
               assertTrue(loadConnectionInfo().FIXME)
-            } @@ ignore +
+            } +
             /**
              * EXERCISE
              *
@@ -371,30 +387,30 @@ object Exceptions extends ZIOSpecDefault {
              */
             test("Either") {
               object Config {
-                def getHost(): String = {
+                def getHost(): Either[String, String] = {
                   val result = System.getProperty("CONFIG_HOST")
 
-                  if (result == null) throw new RuntimeException("Host is missing")
+                  if (result == null) return Left("Epic Failure")
 
-                  result
+                  Right(result)
                 }
 
-                def getPort(): Int = {
-                  val result = System.getProperty("CONFIG_HOST")
+                def getPort(): Either[String, Int] = {
+                  val result = System.getProperty("CONFIG_PORT")
 
-                  if (result == null) throw new RuntimeException("Port is missing")
+                  if (result == null) return Left("Epic Failure")
 
-                  result.toInt
+                  Right(result.toInt)
                 }
               }
 
               final case class ConnectionInfo(host: String, port: Int)
 
               def loadConnectionInfo(): ConnectionInfo =
-                ConnectionInfo(Config.getHost(), Config.getPort())
+                ConnectionInfo(Config.getHost().getOrElse("Fail"), Config.getPort().getOrElse(0))
 
               assertTrue(loadConnectionInfo().FIXME)
-            } @@ ignore
+            }
         } +
         suite("mixed") {
 
@@ -413,14 +429,10 @@ object Exceptions extends ZIOSpecDefault {
             def getUser: Option[User] = Some("sherlock@holmes.com")
             def getDocs: Try[Docs]    = Try(List("Doc 1", "Doc 2"))
 
-            def getUserAndDocs = {
-              getUser
-              getDocs
-              ???
-            }
+            def getUserAndDocs: (String, List[String]) = (getUser.get, getDocs.get)
 
-            assertTrue(getUserAndDocs == ???)
-          } @@ ignore +
+            assertTrue(getUserAndDocs == ("sherlock@holmes.com", List("Doc 1", "Doc 2")))
+          } +
             /**
              * EXERCISE
              *
@@ -436,14 +448,10 @@ object Exceptions extends ZIOSpecDefault {
               def getUser: Either[String, User] = Right("sherlock@holmes.com")
               def getDocs: Option[Docs]         = Some(List("Doc 1", "Doc 2"))
 
-              def getUserAndDocs = {
-                getUser
-                getDocs
-                ???
-              }
+              def getUserAndDocs: (String, List[String]) = (getUser.getOrElse("Failure"), getDocs.get)
 
-              assertTrue(getUserAndDocs == ???)
-            } @@ ignore +
+              assertTrue(getUserAndDocs == ("sherlock@holmes.com", List("Doc 1", "Doc 2")))
+            } +
             /**
              * EXERCISE
              *
@@ -459,14 +467,10 @@ object Exceptions extends ZIOSpecDefault {
               def getUser: Either[String, User] = Right("sherlock@holmes.com")
               def getDocs: Try[Docs]            = Try(List("Doc 1", "Doc 2"))
 
-              def getUserAndDocs = {
-                getUser
-                getDocs
-                ???
-              }
+              def getUserAndDocs: (String, List[String]) = (getUser.getOrElse("Failure"), getDocs.get)
 
-              assertTrue(getUserAndDocs == ???)
-            } @@ ignore +
+              assertTrue(getUserAndDocs == ("sherlock@holmes.com", List("Doc 1", "Doc 2")))
+            } +
             /**
              * EXERCISE
              *
@@ -484,15 +488,23 @@ object Exceptions extends ZIOSpecDefault {
               def getDocs: Try[Docs]            = Try(List("Doc 1", "Doc 2"))
               def getPrefs: Option[Prefs]       = Some(Map("autosave" -> true))
 
-              def getUserAndDocsAndPrefs = {
-                getUser
-                getDocs
-                getPrefs
-                ???
-              }
+              def getUserAndDocsAndPrefs = (
+                getUser match {
+                  case Right(value) => value
+                  case _ => "Failure"
+                },
+                getDocs match {
+                  case docs:Success[Docs] => docs.value
+                  case _ => List.empty
+                },
+                getPrefs match {
+                  case None => Map
+                  case Some(value) => value
+                }
+              )
 
-              assertTrue(getUserAndDocsAndPrefs == ???)
-            } @@ ignore
+              assertTrue(getUserAndDocsAndPrefs == ("sherlock@holmes.com", List("Doc 1", "Doc 2"), Map("autosave" -> true)))
+            }
         }
     }
 }

@@ -16,6 +16,10 @@ package net.degoes
 import zio.test._
 import zio.test.TestAspect._
 
+import scala.::
+
+/*
+
 object Collections extends ZIOSpecDefault {
   def spec =
     suite("Collections") {
@@ -37,7 +41,7 @@ object Collections extends ZIOSpecDefault {
           }
 
           assertTrue(sum == 6)
-        } @@ ignore +
+        } +
           /**
            * EXERCISE
            *
@@ -47,10 +51,10 @@ object Collections extends ZIOSpecDefault {
           test("map") {
             val list1 = List(0, 3, 0, 2, 1)
 
-            val list2 = list1.map(i => i) // EDIT HERE
+            val list2 = list1.map(i => i * 2)
 
             assertTrue(list2.sum == 12 && list2.length == list1.length)
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -64,10 +68,10 @@ object Collections extends ZIOSpecDefault {
 
             val list1 = List(0, 3, 0, 2, 1)
 
-            val list2 = list1.filter(_ => true) // EDIT HERE
+            val list2 = list1.filter(_) // EDIT HERE
 
             assertTrue(list2 == List(0, 0, 2))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -77,10 +81,10 @@ object Collections extends ZIOSpecDefault {
           test("take") {
             val list1 = List(1, 2, 3, 4)
 
-            val list2 = list1
+            val list2 = list1.take(2)
 
             assertTrue(list2 == List(1, 2))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -90,10 +94,10 @@ object Collections extends ZIOSpecDefault {
           test("takeWhile") {
             val list1 = List(1, 2, 0, 3, 1, 2)
 
-            val list2 = list1
+            val list2 = list1.takeWhile((i: Int) => i<3)
 
             assertTrue(list2 == List(1, 2, 0))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -103,10 +107,10 @@ object Collections extends ZIOSpecDefault {
           test("drop") {
             val list1 = List(1, 2, 3, 4)
 
-            val list2 = list1
+            val list2 = list1.drop(2)
 
             assertTrue(list2 == List(3, 4))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -116,10 +120,10 @@ object Collections extends ZIOSpecDefault {
           test("dropWhile") {
             val list1 = List(1, 2, 0, 3, 1, 2)
 
-            val list2 = list1
+            val list2 = list1.dropWhile((i: Int) => i<3)
 
             assertTrue(list2 == List(3, 1, 2))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -136,10 +140,12 @@ object Collections extends ZIOSpecDefault {
 
             val list1 = List(0, 3, 0, 2, 1)
 
-            def list2: List[Even] = list1.collect(???)
+            def list2: List[Even] = list1.collect {
+              case i: Int if i % 2 == 0 => Even(i)
+            }
 
             assertTrue(list2 == List(Even(0), Even(0), Even(2)))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -153,10 +159,10 @@ object Collections extends ZIOSpecDefault {
 
             val list = List(0, 3, 0, 2, 1)
 
-            val (even, odd) = list.partition(_ => ???)
+            val (even, odd) = list.partition((i: Int) => i%2 == 0)
 
             assertTrue(even == List(0, 0, 2) && odd == List(3, 1))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -184,12 +190,12 @@ object Collections extends ZIOSpecDefault {
           test("find") {
             val list = List(1, 2, 3, 4)
 
-            val _ = list
+            val _ = list.find(i => i>2)
 
-            def firstGreaterThan2: Option[Int] = ???
+            def firstGreaterThan2: Option[Int] = list.find(i => i>2)
 
             assertTrue(firstGreaterThan2 == Some(3))
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -201,10 +207,10 @@ object Collections extends ZIOSpecDefault {
 
             val _ = list
 
-            def existsNegative: Boolean = ???
+            def existsNegative: Boolean = list.exists((i: Int) => i<0)
 
             assertTrue(existsNegative)
-          } @@ ignore +
+          } +
           /**
            * EXERCISE
            *
@@ -220,10 +226,10 @@ object Collections extends ZIOSpecDefault {
 
             val _ = list
 
-            def forallEven: Boolean = ???
+            def forallEven: Boolean = list.forall(isEven)
 
             assertTrue(forallEven)
-          } @@ ignore +
+          } +
           suite("folds") {
 
             /**
@@ -232,40 +238,46 @@ object Collections extends ZIOSpecDefault {
              * Using `List#foldLeft`, compute the sum of a list.
              */
             test("sum") {
-              def sum(list: List[Int]): Int = ???
+              def sum(list: List[Int]): Int = list.foldLeft(0)(_ + _)
 
               assertTrue(sum(List(1, 2, 3, 4, 5)) == 15)
-            } @@ ignore +
+            } +
               /**
                * EXERCISE
                *
                * Using `List#foldLeft`, compute the maximum element of a list.
                */
               test("max") {
-                def max(list: List[Int]): Int = ???
+                def max(list: List[Int]): Int = list.foldLeft(0)((x, y) => {
+                  case x > y => x
+                  case _ => y
+                })
 
                 assertTrue(max(List(1, 7, 3, 2, 4, 5)) == 7)
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
                * Using `List#foldLeft`, compute the minimum element of a list.
                */
               test("min") {
-                def min(list: List[Int]): Int = ???
+                def min(list: List[Int]): Int = list.foldLeft(Int.MaxValue)((x, y) => {
+                  case x > y  => y
+                  case _ => x
+                })
 
                 assertTrue(min(List(1, 7, 3, 2, 0, 4, 5)) == 0)
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
                * Using `List#foldLeft`, compute the reverse of a list.
                */
               test("reverse") {
-                def reverse[A](list: List[A]): List[A] = ???
+                def reverse[A](list: List[A]): List[A] = list.foldLeft(List.empty: List[A])((tList: List[A], num: A) => num :: tList)
 
                 assertTrue(reverse(List(1, 7, 3)) == List(3, 7, 1))
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -274,10 +286,15 @@ object Collections extends ZIOSpecDefault {
                * satisfying the predicate.
                */
               test("partition") {
-                def partition[A](list: List[A])(pred: A => Boolean): (List[A], List[A]) = ???
+                def partition[A](list: List[A])(pred: A => Boolean): (List[A], List[A]) =
+                  ???
+//                  list.foldLeft(List.empty: List[A], List.empty: List[A])(((valList: List[A], expList: List[A]), num: A)
+//                  => {
+//                  case pred(num) => valList :+ num
+//                })
 
                 assertTrue(partition(List(1, 7, 3))(_ < 5) == ((List(1, 3), List(7))))
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -285,10 +302,12 @@ object Collections extends ZIOSpecDefault {
                * elements from a list.
                */
               test("take") {
-                def take[A](n: Int, list: List[A]): List[A] = ???
+                def take[A](n: Int, list: List[A]): List[A] = list.foldLeft(List.empty: List[A])((sliced: List[A], popped: A) => {
+                  case n > 0 => sliced :+ popped
+                })
 
                 assertTrue(take(2, List(1, 7, 3)) == List(1, 7))
-              } @@ ignore +
+              } +
               /**
                * EXERCISE
                *
@@ -296,10 +315,12 @@ object Collections extends ZIOSpecDefault {
                * from a list for as long as a predicate is satisfied.
                */
               test("takeWhile") {
-                def takeWhile[A](list: List[A])(pred: A => Boolean): List[A] = ???
+                def takeWhile[A](list: List[A])(pred: A => Boolean): List[A] = list.foldLeft(List.empty: List[A])((taken: List[A], popped: A) => pred.apply(popped) match {
+                  case true => taken :+ popped
+                })
 
                 assertTrue(takeWhile(List(1, 7, 3))(_ < 5) == List(1))
-              } @@ ignore
+              }
           }
       } +
         suite("performance") {
@@ -420,3 +441,5 @@ object CollectionsGraduation {
     def empty[E, V] = Graph()
   }
 }
+
+*/
